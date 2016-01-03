@@ -23,18 +23,26 @@ namespace OpticalSudokuSolver
             var target = new[] { value };
             Marshal.Copy(target, 0, mat.DataPointer + (row * mat.Cols + col) * mat.ElementSize, 1);
         }
+        public static void getBegEnd(this Mat img, PointF line, out Point beg, out Point end)
+        {
+            if (line.Y != 0)
+            {
+                float m = (float)(-1.0 / Math.Tan(line.Y));
+                float c = (float)(line.X / Math.Sin(line.Y));
+                beg = new Point(0, (int)c);
+                end = new Point(img.Size.Width, (int)(m * img.Size.Width + c));
+            }
+            else
+            {
+                beg = new Point((int)line.X, 0);
+                end = new Point((int)line.X, img.Size.Height);
+            }
+        }
         public static void drawLine(this Mat img, PointF line, MCvScalar rgb)
         {
-	        if(line.Y!=0)
-	        {
-		        float m = (float)(-1.0/Math.Tan(line.Y));
-		        float c = (float)(line.X/Math.Sin(line.Y));
-                CvInvoke.Line(img, new Point(0, (int)c), new Point(img.Size.Width, (int)(m*img.Size.Width+c)), rgb);
-	        }
-	        else
-	        {
-                CvInvoke.Line(img, new Point((int)line.X, 0), new Point((int)line.X, img.Size.Height), rgb);
-	        }
+            Point beg, end;
+            img.getBegEnd(line, out beg, out end);
+            CvInvoke.Line(img, beg, end, rgb);
         }
         public static PointF[] mergeRelatedLines(this Mat img, PointF[] lines, float maxDeltaP, float maxDeltaTheta)
         {
@@ -114,6 +122,7 @@ namespace OpticalSudokuSolver
             }
             List<float> thetas = new List<float>();
             List<List<int>> ret = new List<List<int>>();
+            //Classify lines based by thetas
             while(idxLst.Count > 0)
             {
                 List<int> curRet = new List<int>();
@@ -140,6 +149,7 @@ namespace OpticalSudokuSolver
                 }
                 ret.Add(curRet);
             }
+            // Find the first 2 otho lines group
             for (int i = 0; i < thetas.Count; i++)
             {
                 int idx = thetas.FindIndex(th =>
@@ -152,14 +162,75 @@ namespace OpticalSudokuSolver
                     List<int> ret0 = ret[i];
                     List<int> ret1 = ret[idx];
                     ret.Clear();
-                    ret.Add(ret0);
-                    ret.Add(ret1);
+                    float m = Math.Abs(thetas[i]/((float)(Math.PI)));
+                    m -= (float)Math.Floor(m);
+                    if (m > 0.25f && m < 0.75f)
+                    {
+                        ret.Add(ret1);
+                        ret.Add(ret0);
+                    }
+                    else
+                    {
+                        ret.Add(ret0);
+                        ret.Add(ret1);
+                    }
                     break;
                 }
             }
             return ret;
         }
-        public static List<Point> calculateIntersectionPoints(this Mat img, PointF[] lines, List<int> grp0, List<int> grp1)
+        // Given 2 line segments, find their intersection point
+        // rerurns [Px,Py] point in 'res' or FALSE if parallel. Uses vector cross product technique.
+        public static bool findLinesIntersectionPoint(Point beg0, Point end0, Point beg1, Point end1, ref PointF intersectionPoint)
+        {
+            Point dp = new Point(end0.X - beg0.X, end0.Y - beg0.Y);
+            Point dq = new Point(end1.X - beg1.X, end1.Y - beg1.Y);
+            Point qmp = new Point(beg1.X - beg0.X, beg1.Y - beg0.Y);
+            int dpdq_cross = dp.X * dq.Y - dp.Y * dq.X;
+            if (dpdq_cross == 0)
+                return false;
+
+            int qpdq_cross = qmp.X * dq.Y - qmp.Y * dq.X;
+            float a = (qpdq_cross * 1.0f / dpdq_cross);
+            intersectionPoint.X = beg0.X + a * dp.X;
+            intersectionPoint.Y = beg0.Y + a * dp.Y;
+            return true;
+        }
+        public static PointF[] getAllIntersectionPoints(this Mat img, PointF[] lines)
+        {
+            int cnt = lines.Length;
+            Point[] pBegs = new Point[cnt];
+            Point[] pEnds = new Point[cnt];
+            for (int i = 0; i < cnt; i++)
+            {
+                if (lines[i].Y != 0)
+                {
+                    float m = (float)(-1.0 / Math.Tan(lines[i].Y));
+                    float c = (float)(lines[i].X / Math.Sin(lines[i].Y));
+                    pBegs[i] = new Point(0, (int)c);
+                    pEnds[i] = new Point(img.Size.Width, (int)(m * img.Size.Width + c));
+                }
+                else
+                {
+                    pBegs[i] = new Point((int)lines[i].X, 0);
+                    pEnds[i] = new Point((int)lines[i].X, img.Size.Height);
+                }
+            }
+            List<PointF> lstIntersectionPoints = new List<PointF>();
+            for (int i = 0; i < cnt; i++)
+            {
+                for (int j = i + 1; j < cnt; j++)
+                {
+                    PointF ret = new PointF();
+                    if (findLinesIntersectionPoint(pBegs[i], pEnds[i], pBegs[j], pEnds[j], ref ret) && ret.X > 0 && ret.Y > 0)
+                    {
+                        lstIntersectionPoints.Add(ret);
+                    }
+                }
+            }
+            return lstIntersectionPoints.ToArray();
+        }
+        public static PointF[] getIntersectionOutline(this Mat img, PointF[] lines, List<int> grp0, List<int> grp1)
         {
             int idxMax0 = grp0[0];
             int idxMin0 = grp0[0];
@@ -189,8 +260,19 @@ namespace OpticalSudokuSolver
                 }
             }
 
-            //Point p0 = 
-            return null;
+            Point begMin0, begMax0, endMin0, endMax0;
+            Point begMin1, begMax1, endMin1, endMax1;
+            img.getBegEnd(lines[idxMin0], out begMin0, out endMin0);
+            img.getBegEnd(lines[idxMax0], out begMax0, out endMax0);
+            img.getBegEnd(lines[idxMin1], out begMin1, out endMin1);
+            img.getBegEnd(lines[idxMax1], out begMax1, out endMax1);
+
+            PointF[] ret = new PointF[4];
+            findLinesIntersectionPoint(begMin0, endMin0, begMin1, endMin1, ref ret[0]);
+            findLinesIntersectionPoint(begMax0, endMax0, begMin1, endMin1, ref ret[1]);
+            findLinesIntersectionPoint(begMax0, endMax0, begMax1, endMax1, ref ret[2]);
+            findLinesIntersectionPoint(begMin0, endMin0, begMax1, endMax1, ref ret[3]);
+            return ret;
         }
     }
 
@@ -260,6 +342,31 @@ namespace OpticalSudokuSolver
             {
                 outerBox.drawLine(lines[i], new MCvScalar(128,0,0));
             }
+
+            PointF[] outlinePoints = sudoku.getIntersectionOutline(lines, ret[0], ret[1]);
+            int nPoints = outlinePoints.Length;
+            float maxLen =(outlinePoints[nPoints-1].X-outlinePoints[0].X)*(outlinePoints[nPoints-1].X-outlinePoints[0].X) + 
+                        (outlinePoints[nPoints-1].Y-outlinePoints[0].Y)*(outlinePoints[nPoints-1].Y-outlinePoints[0].Y);
+            for(int i = 0; i < outlinePoints.Length-1; i++)
+            {
+                float len = (outlinePoints[i+1].X-outlinePoints[i].X)*(outlinePoints[i+1].X-outlinePoints[i].X) + 
+                            (outlinePoints[i+1].Y-outlinePoints[i].Y)*(outlinePoints[i+1].Y-outlinePoints[i].Y);
+                if(len > maxLen)
+                {
+                    maxLen = len;
+                }
+            }
+            maxLen = (float)Math.Sqrt(maxLen);
+            PointF[] dstRectPoints = new PointF[]{
+                new PointF(0,0),
+                new PointF(maxLen,0),
+                new PointF(maxLen,maxLen),
+                new PointF(0,maxLen),
+            };
+            Size szRect = new Size((int)maxLen, (int)maxLen);
+            CvInvoke.WarpPerspective(sudoku, outerBox, CvInvoke.GetPerspectiveTransform(outlinePoints, dstRectPoints), szRect);
+            
+            //CvInvoke.ter
 
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", outerBox);
