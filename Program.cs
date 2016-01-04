@@ -295,7 +295,6 @@ namespace OpticalSudokuSolver
             Mat kernel = new Mat();
             kernel.SetTo(dat);
             CvInvoke.Dilate(outerBox, outerBox, kernel, new Point(), 1, BorderType.Default, new MCvScalar());
-            
             int max = -1;
             Point maxPt = new Point();
             Rectangle rect;     
@@ -337,7 +336,7 @@ namespace OpticalSudokuSolver
             PointF[] lines = vp.ToArray();
             lines = sudoku.mergeRelatedLines(lines, 15, (float)(15 * Math.PI / 180));
             List<List<int>> ret = sudoku.classifyLines(lines, (float)(15 * Math.PI / 180));
-            int cntLines = Math.Min(99, lines.Length);
+            int cntLines =lines.Length;
             for (int i = 0; i < cntLines; i++)
             {
                 outerBox.drawLine(lines[i], new MCvScalar(128,0,0));
@@ -365,9 +364,14 @@ namespace OpticalSudokuSolver
             };
             Size szRect = new Size((int)maxLen, (int)maxLen);
             CvInvoke.WarpPerspective(sudoku, outerBox, CvInvoke.GetPerspectiveTransform(outlinePoints, dstRectPoints), szRect);
-            
-            //CvInvoke.ter
 
+            Emgu.CV.OCR.Tesseract ocr = new Emgu.CV.OCR.Tesseract("", "eng", Emgu.CV.OCR.OcrEngineMode.TesseractOnly, "0123456789");
+            ocr.Recognize(outerBox);
+            Emgu.CV.OCR.Tesseract.Character[] characters = ocr.GetCharacters();
+            foreach (Emgu.CV.OCR.Tesseract.Character c in characters)
+            {
+                CvInvoke.Rectangle(outerBox, c.Region, new MCvScalar(255, 0, 0));
+            }            
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", outerBox);
             CvInvoke.WaitKey(0);
