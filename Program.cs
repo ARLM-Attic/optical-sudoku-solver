@@ -90,7 +90,6 @@ namespace OpticalSudokuSolver
             }
 #endif
             normSudoku.Free();
-
             PointF[] outlinePoints = sudoku.getIntersectionOutline(lines, ret[0], ret[1]);
             int nPoints = outlinePoints.Length;
             float maxLen = (outlinePoints[nPoints - 1].X - outlinePoints[0].X) * (outlinePoints[nPoints - 1].X - outlinePoints[0].X) +
@@ -152,6 +151,7 @@ namespace OpticalSudokuSolver
         {
             string strSudokuPic = "../tstData/sudoku-original.jpg";
             //strSudokuPic = "../tstData/111.jpg";
+            strSudokuPic = "../tstData/222.jpg";
             Mat sudoku = new Mat(strSudokuPic, LoadImageType.Grayscale);
             MyMat normSudoku = NormalizeSudokuMat(sudoku);
             //Mat[] chs = img.Split();
@@ -159,11 +159,11 @@ namespace OpticalSudokuSolver
             //CvInvoke.Subtract(chs[2], chs[1], chs[2]);            
 
             MakeupForOCR(normSudoku);
-
+            
             string strNums = "0123456789";
             Emgu.CV.OCR.Tesseract ocr = new Emgu.CV.OCR.Tesseract("", "eng", Emgu.CV.OCR.OcrEngineMode.TesseractOnly, strNums);
             ocr.Recognize(normSudoku._mat);
-            float digitSize = normSudoku._mat.Width / 9;
+            float digitSize = normSudoku._mat.Width / 9.0f;
             Emgu.CV.OCR.Tesseract.Character[] characters = ocr.GetCharacters();
             foreach (Emgu.CV.OCR.Tesseract.Character c in characters)
             {
@@ -172,18 +172,26 @@ namespace OpticalSudokuSolver
                     float top = c.Region.Top / digitSize;
                     float btm = c.Region.Bottom / digitSize;
                     int num;
-                    if(top - (int)top < 0.5f && btm - (int)btm > 0.5f && int.TryParse(c.Text, out num))
+                    if(top - (int)top < 0.3f && btm - (int)btm > 0.7f && int.TryParse(c.Text, out num))
                     {
                         float left = c.Region.Left / digitSize;
-                        SudokuSolver.setSudoku((int)left, (int)top, num);
+                        SudokuSolver.setSudoku((int)top, (int)left, num);
 #if DebugMat
                       CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(255, 0, 0));
 #endif
                     }
                 }
             }
-            SudokuSolver.solveSudoku();
-
+            if(SudokuSolver.solveSudoku())
+            {
+                for(int i = 0; i < 9; i++)
+                {
+                    for(int j = 0; j < 9; j++)
+                    {
+                        CvInvoke.PutText(normSudoku._mat, SudokuSolver.getSudoku(i,j).ToString(), new Point((int)((j+0.5)*digitSize), (int)((i+0.5)*digitSize)), FontFace.HersheyPlain, 1, new MCvScalar(255,0,0));
+                    }
+                }
+            }
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", normSudoku._mat);
             CvInvoke.WaitKey(0);

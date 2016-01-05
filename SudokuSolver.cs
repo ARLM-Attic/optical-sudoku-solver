@@ -8,15 +8,15 @@ namespace OpticalSudokuSolver
 {
     public static class SudokuSolver
     {
-        const int UndefinedNum = -1;
+        const int UndefinedNum = 0;
         static int[,] _datMat = new int[9, 9];
-        static bool isValidSudoku(int[,] board, int x, int y)
+        static bool isValidSudoku(int[,] board, int r, int c)
         {
             int row, col;
             // Same value in the same column?
             for (row = 0; row < 9; ++row)
             {
-                if ((x != row) && (board[row,y] == board[x,y]))
+                if ((r != row) && (board[row,c] == board[r,c]))
                 {
                     return false;
                 }
@@ -24,17 +24,17 @@ namespace OpticalSudokuSolver
             // Same value in the same row?
             for (col = 0; col < 9; ++col)
             {
-                if ((y != col) && (board[x,col] == board[x,y]))
+                if ((c != col) && (board[r,col] == board[r,c]))
                 {
                     return false;
                 }
             }
             // Same value in the 3 * 3 block it belong to?
-            for (row = (x / 3) * 3; row < (x / 3 + 1) * 3; ++row)
+            for (row = (r / 3) * 3; row < (r / 3 + 1) * 3; ++row)
             {
-                for (col = (y / 3) * 3; col < (y / 3 + 1) * 3; ++col)
+                for (col = (c / 3) * 3; col < (c / 3 + 1) * 3; ++col)
                 {
-                    if ((x != row) && (y != col) && (board[row,col] == board[x,y]))
+                    if ((r != row) && (c != col) && (board[row,col] == board[r,c]))
                     {
                         return false;
                     }
@@ -74,13 +74,17 @@ namespace OpticalSudokuSolver
             return true;
         }
 
-        public static void setSudoku(int x, int y, int num)
+        public static void setSudoku(int row, int col, int num)
         {
-            _datMat[x, y] = num;
+            _datMat[row, col] = num;
         }
-        public static void solveSudoku()
+        public static int getSudoku(int row, int col)
         {
-            internalSolveSudoku(_datMat);
+            return _datMat[row, col];
+        }
+        public static bool solveSudoku()
+        {
+            return internalSolveSudoku(_datMat);
         }
     }
 }
