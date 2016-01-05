@@ -81,12 +81,13 @@ namespace OpticalSudokuSolver
             //CvInvoke.HoughLinesP(normSudoku._mat, vp, 1, Math.PI / 180, 80, normSudoku._mat.Size.Width / 2.0, 50);
             PointF[] lines = vp.ToArray();
             lines = sudoku.mergeRelatedLines(lines, sudoku.Width / (9 * 4.0f), (float)(15 * Math.PI / 180));
-            List<List<int>> ret = sudoku.classifyLines(lines, (float)(15 * Math.PI / 180));
+            List<List<int>> ret = SudokuMatHelper.classifyLines(lines, (float)(15 * Math.PI / 180));
+            SudokuMatHelper.ridRedundantLines(lines, ret);
 #if DebugMat
-            int cntLines = lines.Length;
+            int cntLines = ret[1].Count;
             for (int i = 0; i < cntLines; i++)
             {
-                normSudoku._mat.drawLine(lines[i], new MCvScalar(128, 0, 0));
+                normSudoku._mat.drawLine(lines[ret[1][i]], new MCvScalar(128, 0, 0));
             }
 #endif
             normSudoku.Free();
@@ -177,7 +178,7 @@ namespace OpticalSudokuSolver
                         float left = c.Region.Left / digitSize;
                         SudokuSolver.setSudoku((int)top, (int)left, num);
 #if DebugMat
-                      CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(255, 0, 0));
+                        CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(255, 0, 0));
 #endif
                     }
                 }

@@ -129,7 +129,7 @@ namespace OpticalSudokuSolver
             return lstLines.ToArray();
         }
         // Return first 2 cross line group
-        public static List<List<int>> classifyLines(this Mat img, PointF[] lines, float maxDeltaTheta)
+        public static List<List<int>> classifyLines(PointF[] lines, float maxDeltaTheta)
         {
             int n = lines.Length;
             List<int> idxLst = new List<int>();
@@ -144,16 +144,16 @@ namespace OpticalSudokuSolver
             {
                 List<int> curRet = new List<int>();
                 int idx = idxLst[idxLst.Count - 1];
+                float theta = lines[idx].Y;
                 idxLst.RemoveAt(idxLst.Count - 1);
                 curRet.Add(idx);
-                thetas.Add(lines[idx].Y);
+                thetas.Add(theta);
 
-                float theta0 = lines[idxLst[0]].Y;
                 for (int i = idxLst.Count - 1; i >= 0; i--)
                 {
                     idx = idxLst[i];
                     float theta1 = lines[idx].Y;
-                    float dTheta = Math.Abs(theta0 - theta1);
+                    float dTheta = Math.Abs(theta - theta1);
                     if (dTheta > (float)Math.PI)
                     {
                         dTheta = (float)(2 * Math.PI) - dTheta;
@@ -195,6 +195,24 @@ namespace OpticalSudokuSolver
                 }
             }
             return ret;
+        }
+        public static void ridRedundantLines(PointF[] lines, List<List<int>> grps)
+        {
+            if (grps[0].Count == grps[1].Count)
+                return;
+
+            /*
+            int dstCnt = Math.Min(grps[0].Count, grps[1].Count);
+            dstCnt = dstCnt >= 10 ? 10 : 4;
+            for(int i = 0; i < 2; i++)
+            {
+                if(grps[i].Count > dstCnt)
+                {
+                    grps[i].Sort((it0, it1) => (int)(lines[it0].X - lines[it1].X));
+                    for()
+                }
+            }
+            */
         }
         // Given 2 line segments, find their intersection point
         // rerurns [Px,Py] point in 'res' or FALSE if parallel. Uses vector cross product technique.
