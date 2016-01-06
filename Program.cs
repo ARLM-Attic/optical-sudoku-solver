@@ -80,14 +80,23 @@ namespace OpticalSudokuSolver
             CvInvoke.HoughLines(normSudoku._mat, vp, 1, Math.PI / 180, 200);
             //CvInvoke.HoughLinesP(normSudoku._mat, vp, 1, Math.PI / 180, 80, normSudoku._mat.Size.Width / 2.0, 50);
             PointF[] lines = vp.ToArray();
-            lines = sudoku.mergeRelatedLines(lines, sudoku.Width / (9 * 4.0f), (float)(15 * Math.PI / 180));
-            List<List<int>> ret = SudokuMatHelper.classifyLines(lines, (float)(15 * Math.PI / 180));
-            SudokuMatHelper.ridRedundantLines(lines, ret);
-#if DebugMat
-            int cntLines = ret[1].Count;
-            for (int i = 0; i < cntLines; i++)
+            float maxDeltaP = Math.Min(sudoku.Size.Width, sudoku.Size.Height) / (9*2.5f);   // 1/2 grid width
+            float maxDeltaTheta = (float)(15 * Math.PI / 180);
+            lines = sudoku.mergeRelatedLines(lines, maxDeltaP, maxDeltaTheta);
+            List<List<int>> ret = SudokuMatHelper.classifyLines(lines, maxDeltaTheta);
+            if (!SudokuMatHelper.ridRedundantLines(lines, ret))
             {
-                normSudoku._mat.drawLine(lines[ret[1][i]], new MCvScalar(128, 0, 0));
+                normSudoku.Free();
+                return normSudoku;
+            }
+
+#if DebugMat
+            for(int i = 0; i < 2; i++)
+            {
+                for(int j = 0; j < ret[i].Count; j++)
+                {
+                    normSudoku._mat.drawLine(lines[ret[i][j]], new MCvScalar(128, 0, 0));
+                }
             }
 #endif
             normSudoku.Free();
@@ -125,7 +134,7 @@ namespace OpticalSudokuSolver
            kernel.SetTo(dat);
            CvInvoke.Dilate(normSudoku._mat, normSudoku._mat, kernel, new Point(), 1, BorderType.Default, new MCvScalar());
 
-            int max = normSudoku._mat.Size.Width / 9;
+           int max = normSudoku._mat.Size.Width / 9;
            max *= max;
            Point maxPt = new Point();
            Rectangle rect;
@@ -151,14 +160,18 @@ namespace OpticalSudokuSolver
         static void Main(string[] args)
         {
             string strSudokuPic = "../tstData/sudoku-original.jpg";
-            //strSudokuPic = "../tstData/111.jpg";
+            strSudokuPic = "../tstData/111.jpg";
             strSudokuPic = "../tstData/222.jpg";
             Mat sudoku = new Mat(strSudokuPic, LoadImageType.Grayscale);
             MyMat normSudoku = NormalizeSudokuMat(sudoku);
+            if(normSudoku._mat == null)
+            {
+                return;
+            }
             //Mat[] chs = img.Split();
             //CvInvoke.Add(chs[0], chs[1], chs[1]);
             //CvInvoke.Subtract(chs[2], chs[1], chs[2]);            
-
+            
             MakeupForOCR(normSudoku);
             
             string strNums = "0123456789";
@@ -193,6 +206,7 @@ namespace OpticalSudokuSolver
                     }
                 }
             }
+
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", normSudoku._mat);
             CvInvoke.WaitKey(0);

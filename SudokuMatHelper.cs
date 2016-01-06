@@ -196,23 +196,55 @@ namespace OpticalSudokuSolver
             }
             return ret;
         }
-        public static void ridRedundantLines(PointF[] lines, List<List<int>> grps)
+        public static bool ridRedundantLines(PointF[] lines, List<List<int>> grps)
         {
-            if (grps[0].Count == grps[1].Count)
-                return;
+            if (grps[0].Count == grps[1].Count && (grps[0].Count == 4 || grps[0].Count == 10))
+                return true;
 
-            /*
-            int dstCnt = Math.Min(grps[0].Count, grps[1].Count);
-            dstCnt = dstCnt >= 10 ? 10 : 4;
+            // Asssume the first line is sudoku rect line
             for(int i = 0; i < 2; i++)
             {
-                if(grps[i].Count > dstCnt)
+                List<int> grp = grps[i];
+                grp.Sort((it0, it1) => (int)(lines[it0].X - lines[it1].X));
+
+                bool fin = false;
+                for (int si = 0; si < grp.Count - 3 && !fin; si++)
                 {
-                    grps[i].Sort((it0, it1) => (int)(lines[it0].X - lines[it1].X));
-                    for()
+                    for(int ei = grp.Count-1; ei >= si + 3 && !fin; ei--)
+                    {
+                        float gridLen = (lines[grp[ei]].X - lines[grp[si]].X)/3;
+                        float maxDeltaP = gridLen / (3 * 2.5f);
+                        for (int j0 = si + 1; j0 < ei && !fin; j0++)
+                        {
+                            float tmpLen = lines[grp[j0]].X - lines[grp[si]].X;
+                            if (Math.Abs(tmpLen - gridLen) < maxDeltaP)
+                            {
+                                for (int j1 = j0 + 1; j1 < ei && !fin; j1++)
+                                {
+                                    tmpLen = lines[grp[j1]].X - lines[grp[j0]].X;
+                                    if (Math.Abs(tmpLen - gridLen) < maxDeltaP)
+                                    {
+                                        // Ok ,first remove tails, then heads
+                                        int idx0 = grp[si];
+                                        int idx1 = grp[j0];
+                                        int idx2 = grp[j1];
+                                        int idx3 = grp[ei];
+                                        grp.Clear();
+                                        grp.Add(idx0);
+                                        grp.Add(idx1);
+                                        grp.Add(idx2);
+                                        grp.Add(idx3);
+                                        fin = true;
+                                    }
+                                }
+                            }
+                        }                        
+                    }
                 }
+                if (!fin)
+                    return false;
             }
-            */
+            return true;
         }
         // Given 2 line segments, find their intersection point
         // rerurns [Px,Py] point in 'res' or FALSE if parallel. Uses vector cross product technique.
