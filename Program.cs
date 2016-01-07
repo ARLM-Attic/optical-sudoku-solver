@@ -160,8 +160,8 @@ namespace OpticalSudokuSolver
         static void Main(string[] args)
         {
             string strSudokuPic = "../tstData/sudoku-original.jpg";
-            strSudokuPic = "../tstData/111.jpg";
-            strSudokuPic = "../tstData/222.jpg";
+            //strSudokuPic = "../tstData/111.jpg";
+            //strSudokuPic = "../tstData/222.jpg";
             Mat sudoku = new Mat(strSudokuPic, LoadImageType.Grayscale);
             MyMat normSudoku = NormalizeSudokuMat(sudoku);
             if(normSudoku._mat == null)
@@ -185,17 +185,20 @@ namespace OpticalSudokuSolver
                 {
                     float top = c.Region.Top / digitSize;
                     float btm = c.Region.Bottom / digitSize;
+                    float leftTop = top - (int)top;
+                    float leftBtm = btm - (int)btm;
                     int num;
-                    if(top - (int)top < 0.3f && btm - (int)btm > 0.7f && int.TryParse(c.Text, out num))
+                    if(leftTop < 0.5f && leftBtm > 0.5f && (leftBtm - leftTop) > 0.4f && int.TryParse(c.Text, out num))
                     {
                         float left = c.Region.Left / digitSize;
                         SudokuSolver.setSudoku((int)top, (int)left, num);
 #if DebugMat
-                        CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(255, 0, 0));
+                        CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(128, 0, 0));
 #endif
                     }
                 }
             }
+            
             if(SudokuSolver.solveSudoku())
             {
                 for(int i = 0; i < 9; i++)
@@ -206,7 +209,7 @@ namespace OpticalSudokuSolver
                     }
                 }
             }
-
+            
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", normSudoku._mat);
             CvInvoke.WaitKey(0);
