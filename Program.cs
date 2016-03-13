@@ -37,13 +37,14 @@ namespace OpticalSudokuSolver
             CvInvoke.GaussianBlur(sudoku, normSudoku._mat, new System.Drawing.Size(11, 11), 0);
             CvInvoke.AdaptiveThreshold(normSudoku._mat, normSudoku._mat, 255, AdaptiveThresholdType.MeanC, ThresholdType.BinaryInv, 5, 2);
             byte[,] dat = new byte[3, 3] { { 0, 1, 0, }, { 1, 1, 1, }, { 0, 1, 0 } };
-            Mat kernel = new Mat();
-            kernel.SetTo(dat);
+            GCHandle handle = GCHandle.Alloc(dat, GCHandleType.Pinned);            
+            Mat kernel = new Mat(3, 3, DepthType.Cv8U, 1, handle.AddrOfPinnedObject(), 3);
             CvInvoke.Dilate(normSudoku._mat, normSudoku._mat, kernel, new Point(), 1, BorderType.Default, new MCvScalar());
 
             int max = -1;
             Point maxPt = new Point();
-            Rectangle rect;
+            Rectangle rect = new Rectangle();
+            //MCvConnectedComp comp = new MCvConnectedComp();
             int idx = 0;
             for (int y = 0; y < normSudoku._mat.Size.Height; y++)
             {
@@ -130,13 +131,13 @@ namespace OpticalSudokuSolver
            CvInvoke.GaussianBlur(normSudoku._mat, normSudoku._mat, new System.Drawing.Size(3, 3), 0);
            CvInvoke.AdaptiveThreshold(normSudoku._mat, normSudoku._mat, 255, AdaptiveThresholdType.GaussianC, ThresholdType.BinaryInv, 5, 2);
            byte[,] dat = new byte[3, 3] { { 0, 1, 0, }, { 1, 1, 1, }, { 0, 1, 0 } };
-           Mat kernel = new Mat();
-           kernel.SetTo(dat);
+           GCHandle handle = GCHandle.Alloc(dat, GCHandleType.Pinned);
+           Mat kernel = new Mat(3, 3, DepthType.Cv8U, 1, handle.AddrOfPinnedObject(), 3);
            CvInvoke.Dilate(normSudoku._mat, normSudoku._mat, kernel, new Point(), 1, BorderType.Default, new MCvScalar());
 
-           int max = normSudoku._mat.Size.Width / 9;
-           max *= max;
-           Point maxPt = new Point();
+           int maxLen = normSudoku._mat.Size.Width / 9;
+           int maxArea = maxLen*maxLen;
+           //Point maxPt = new Point();
            Rectangle rect;
            int idx = 0;
            for (int y = 0; y < normSudoku._mat.Size.Height; y++)
@@ -146,7 +147,8 @@ namespace OpticalSudokuSolver
                    if (normSudoku._data[idx++] >= 255)
                    {
                        int area = CvInvoke.FloodFill(normSudoku._mat, null, new Point(x, y), new MCvScalar(254, 0, 0), out rect, new MCvScalar(), new MCvScalar());
-                       if (area > max)
+                        //if (area > maxArea || area < maxArea/12)
+                        if (rect.Width > maxLen || rect.Height > maxLen || area < maxArea / 12)
                        {
                            CvInvoke.FloodFill(normSudoku._mat, null, new Point(x, y), new MCvScalar(0, 0, 0), out rect, new MCvScalar(), new MCvScalar());
                        }
@@ -162,6 +164,8 @@ namespace OpticalSudokuSolver
             string strSudokuPic = "../tstData/sudoku-original.jpg";
             //strSudokuPic = "../tstData/111.jpg";
             //strSudokuPic = "../tstData/222.jpg";
+            strSudokuPic = "../tstData/11.jpg";
+            //strSudokuPic = "../tstData/12.jpg";
             Mat sudoku = new Mat(strSudokuPic, LoadImageType.Grayscale);
             MyMat normSudoku = NormalizeSudokuMat(sudoku);
             if(normSudoku._mat == null)
@@ -171,7 +175,6 @@ namespace OpticalSudokuSolver
             //Mat[] chs = img.Split();
             //CvInvoke.Add(chs[0], chs[1], chs[1]);
             //CvInvoke.Subtract(chs[2], chs[1], chs[2]);            
-            
             MakeupForOCR(normSudoku);
             
             string strNums = "0123456789";
@@ -186,19 +189,28 @@ namespace OpticalSudokuSolver
                     float top = c.Region.Top / digitSize;
                     float btm = c.Region.Bottom / digitSize;
                     float leftTop = top - (int)top;
-                    float leftBtm = btm - (int)btm;
+                    float leftBtm = btm - (int)top;
                     int num;
-                    if(leftTop < 0.5f && leftBtm > 0.5f && (leftBtm - leftTop) > 0.4f && int.TryParse(c.Text, out num))
+                    if(int.TryParse(c.Text, out num))
                     {
-                        float left = c.Region.Left / digitSize;
-                        SudokuSolver.setSudoku((int)top, (int)left, num);
+                        if (leftTop < 0.5f && leftBtm > 0.5f && (leftBtm - leftTop) > 0.4f && (leftBtm - leftTop) < 1.0f)
+                        { 
+                            float left = c.Region.Left / digitSize;
+                            SudokuSolver.setSudoku((int)top, (int)left, num);
 #if DebugMat
-                        CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(128, 0, 0));
+                            CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(128, 0, 0));
 #endif
+                        }
+                        else
+                        {
+#if DebugMat
+                            //CvInvoke.Rectangle(normSudoku._mat, c.Region, new MCvScalar(128, 0, 0));
+#endif
+                        }
                     }
                 }
             }
-            
+            //*
             if(SudokuSolver.solveSudoku())
             {
                 for(int i = 0; i < 9; i++)
@@ -209,7 +221,7 @@ namespace OpticalSudokuSolver
                     }
                 }
             }
-            
+            //*/
             CvInvoke.Imshow("Ori", sudoku);
             CvInvoke.Imshow("out", normSudoku._mat);
             CvInvoke.WaitKey(0);
